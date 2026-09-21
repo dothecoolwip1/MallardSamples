@@ -1,25 +1,35 @@
-name: Deploy Mallard Site
+name: Build Mallard Static Site
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'scripts/**'
+      - 'source-index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: mallard-static-build
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,29 +43,29 @@ jobs:
       - name: Test document engine
         run: npm run test:mallard-documents
 
-      - name: Build
+      - name: Build compiled site
         run: npm run build
         env:
           GITHUB_PAGES: "true"
 
-      - name: Add SPA fallback
-        run: cp dist/index.html dist/404.html
+      - name: Publish compiled files into Pages branch source
+        run: |
+          rm -rf assets icons legacy
+          cp dist/source-index.html index.html
+          cp -R dist/assets assets
+          cp -R dist/icons icons
+          if [ -d dist/legacy ]; then cp -R dist/legacy legacy; fi
+          cp dist/manifest.webmanifest manifest.webmanifest
+          if [ -f dist/mallard-manifest.webmanifest ]; then cp dist/mallard-manifest.webmanifest mallard-manifest.webmanifest; fi
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Commit compiled site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A index.html assets icons legacy manifest.webmanifest mallard-manifest.webmanifest
+          if git diff --cached --quiet; then
+            echo "Compiled site is already current."
+            exit 0
+          fi
+          git commit -m "Publish compiled Mallard site"
+          git push origin HEAD:main
