@@ -6,4 +6,9 @@ const isGitHubPages = process.env.GITHUB_PAGES === 'true'
 export default defineConfig({
   base: isGitHubPages ? '/MallardSamples/' : '/',
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      input: 'source-index.html',
+    },
+  },
 })
