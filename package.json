@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --open /source-index.html",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --open /source-index.html",
     "test:mallard-documents": "node scripts/mallard-document-engine-test.mjs"
   },
   "dependencies": {
