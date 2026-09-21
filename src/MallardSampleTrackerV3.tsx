@@ -315,6 +315,16 @@ function formatBottleDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value)).toUpperCase()
 }
 
+function safeStorageGet(key: string) {
+  try { return window.localStorage.getItem(key) || '' }
+  catch { return '' }
+}
+
+function safeStorageSet(key: string, value: string) {
+  try { window.localStorage.setItem(key, value) }
+  catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+}
+
 function blankForm(classificationCode = 201): SampleForm {
   return {
     classification_code: classificationCode,
@@ -324,7 +334,7 @@ function blankForm(classificationCode = 201): SampleForm {
     customer_site: '',
     description_of_work: '',
     suspected_contents: '',
-    collector_name: localStorage.getItem(ACTOR_KEY) || '',
+    collector_name: safeStorageGet(ACTOR_KEY),
     field_notes: '',
     sample_matrix: 'Unknown',
     priority: false,
@@ -401,7 +411,7 @@ export default function MallardSampleTrackerV3() {
   const [newForm, setNewForm] = React.useState<SampleForm>(() => blankForm())
   const [activeDraftId, setActiveDraftId] = React.useState<string | null>(null)
   const [drafts, setDrafts] = React.useState<SavedDraft[]>(() => {
-    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '[]') }
+    try { return JSON.parse(safeStorageGet(DRAFT_KEY) || '[]') }
     catch { return [] }
   })
   const [classifications, setClassifications] = React.useState<Classification[]>([])
@@ -419,11 +429,11 @@ export default function MallardSampleTrackerV3() {
   const [categoryFilter, setCategoryFilter] = React.useState<'all' | SampleCategory>('all')
   const [statusFilter, setStatusFilter] = React.useState<'all' | SampleStatus>('all')
   const [disposalFilter, setDisposalFilter] = React.useState<'all' | 'undumped' | string>('all')
-  const [actorName, setActorName] = React.useState(() => localStorage.getItem(ACTOR_KEY) || '')
+  const [actorName, setActorName] = React.useState(() => safeStorageGet(ACTOR_KEY))
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
   const [message, setMessage] = React.useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
-  const [online, setOnline] = React.useState(() => navigator.onLine)
+  const [online, setOnline] = React.useState(() => typeof navigator === 'undefined' ? true : navigator.onLine)
   const [attachmentBusy, setAttachmentBusy] = React.useState(false)
   const [attachmentProgress, setAttachmentProgress] = React.useState('')
   const [attachmentProgressValue, setAttachmentProgressValue] = React.useState(0)
@@ -507,7 +517,7 @@ export default function MallardSampleTrackerV3() {
 
   const persistDrafts = (next: SavedDraft[]) => {
     setDrafts(next)
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(next))
+    safeStorageSet(DRAFT_KEY, JSON.stringify(next))
   }
 
   const makeNavState = (
@@ -607,7 +617,7 @@ export default function MallardSampleTrackerV3() {
       customer_site: sample.customer_site || '',
       description_of_work: sample.description_of_work,
       suspected_contents: sample.suspected_contents,
-      collector_name: sample.collector_name || localStorage.getItem(ACTOR_KEY) || '',
+      collector_name: sample.collector_name || safeStorageGet(ACTOR_KEY),
       field_notes: '',
       sample_matrix: sample.sample_matrix || 'Unknown',
       priority: sample.priority,
@@ -653,7 +663,7 @@ export default function MallardSampleTrackerV3() {
     setSaving(true)
     const collector = newForm.collector_name.trim()
     if (collector) {
-      localStorage.setItem(ACTOR_KEY, collector)
+      safeStorageSet(ACTOR_KEY, collector)
       setActorName(collector)
     }
 
@@ -1026,7 +1036,7 @@ export default function MallardSampleTrackerV3() {
       setMessage({ type: 'error', text: 'Enter your name before changing sample status.' })
       return
     }
-    localStorage.setItem(ACTOR_KEY, actor)
+    safeStorageSet(ACTOR_KEY, actor)
     const patch: Record<string, unknown> = { status: target }
     const now = new Date().toISOString()
     if (target === 'received' && !selected.received_at) {
